@@ -11,23 +11,57 @@ author: put your name here
 ### 資料匯入與處理
 ```{r dataload}
 library(readr)
+library(rvest)
 library(dplyr)
+library(funModeling)
+library(data.table)
+library(dplyr)
+library(rmarkdown)
+library(knitr)
+Occ107 <- read_csv("C:/Users/User/Desktop/HW/Occ107.csv")
+Occ104 <- read_csv("C:/Users/User/Desktop/HW/Occ104.csv")
+for(n in 1:14)
+{Occ104[[n]] <- gsub("—|…",NA,Occ104[[n]])
+Occ107[[n]] <- gsub("—|…",NA,Occ107[[n]])}
 
+for(n in 3:14)
+{Occ104[[n]] <- as.numeric(Occ104[[n]])
+Occ107[[n]] <- as.numeric(Occ107[[n]])}
+#將奇怪的字符取代成空字串並將所有欄位轉成數字型態
+Occ104[[2]] <- gsub("部門","",Occ104[[2]])
+Occ107[[2]] <- gsub("_","、",Occ104[[2]])
+Occ107[[2]] <- gsub("工程","業",Occ104[[2]])
+Occ107[[2]] <- gsub("出版、影音製作、傳播及資通訊服務業","資訊及通訊傳播業",Occ104[[2]])
+Occ107[[2]] <- gsub("教育業","教育服務業",Occ104[[2]])
+Occ107[[2]] <- gsub("醫療保健業","醫療保健服務業",Occ104[[2]])
+#統一104和107年的職業名稱
+Occ_Compare <-
+  inner_join(Occ104,Occ107,by=c("大職業別"))
+#根據職業名稱合併表格 x=104 y=107
 ```
 
 ### 107年度薪資較104年度薪資高的職業有哪些? 
 ```{r compare103106}
-#這是R Code Chunk
+Occ_Q1 <-select(Occ_Compare,大職業別,`大學-薪資.x`,`大學-薪資.y`)
+Occ_Q1$薪資比較 <- as.numeric(Occ_Q1$`大學-薪資.y`) / as.numeric(Occ_Q1$`大學-薪資.x`)
+Occ_Q1<-arrange(Occ_Q1,desc(薪資比較))
+filter(Occ_Q1,Occ_Q1$薪資比較>=1)
+head(Occ_Q1[order(Occ_Q1$薪資比較,decreasing = T),],10)
 ```
+可以發現服務業佔大多數，前10名中就有7個服務業
+
 
 ### 提高超過5%的的職業有哪些? 
 ```{r over5}
-#這是R Code Chunk
+filter(Occ_Q1,Occ_Q1$薪資比較>1.05)
 ```
 
 ### 主要的職業種別是哪些種類呢?
 ```{r mainType}
-#這是R Code Chunk
+Occ_Q1_Count <- filter(Occ_Q1,Occ_Q1$薪資比較>1.05)
+Occ_Q1_test1 <- strsplit(Occ_Q1_Count$大職業別,"-")
+Occ_Q1_test2 <- lapply(Occ_Q1_test1, "[",1)
+knitr::kable(table(unlist(Occ_Q1_test2)))
 ```
 
 ## 男女同工不同酬現況分析
@@ -36,30 +70,73 @@ library(dplyr)
 
 ### 104和107年度的大學畢業薪資資料，哪些行業男生薪資比女生薪資多?
 ```{r male}
-#這是R Code Chunk
+Occ_Q2<-select(Occ_Compare,大職業別,`大學-女/男.x`,`大學-女/男.y`)
+
+#104年 男生薪資比女生薪資多的職業的前10
+arrange(Occ_Q2,`大學-女/男.x`)
+#107年 男生薪資比女生薪資多的職業的前10名
+arrange(Occ_Q2,`大學-女/男.y`)
 ```
 ### 哪些行業女生薪資比男生薪資多? 
 ```{r female}
-#這是R Code Chunk
+#104年 女生薪資比男生薪資多的職業的前10名
+arrange(Occ_Q2,desc(`大學-女/男.x`))
+
+#107年 女生薪資比男生薪資多的職業的前10名
+arrange(Occ_Q2,desc(`大學-女/男.y`))
 ```
+
+ 可以發現男生薪資比女生薪資高的職業，苦力類型的較多一些，諸如技藝、機械設備操作及組裝人員等，而比較104年和107年的差異，可以看出組裝人員的需求下降，專業人員的需求上升，且水電方面的需求增多，顯然組裝這類工作漸漸被機器取代，而隨著人口增長、建案不斷落成，水電需求也越來越高。
+ 
+ 而女生薪資比男生薪資高的部分則剛好與男生相反，專業人員的需求下降，組裝人員則提升，意味著女生的細心或許在組裝方面更受企業青睞，金融、不動產等需要接待客人的工作也是女生較為吃香。
+
+
 
 ## 研究所薪資差異
 
 以107年度的資料來看，哪個職業別念研究所最划算呢 (研究所學歷薪資與大學學歷薪資增加比例最多)?
  
 ```{r grad}
-#這是R Code Chunk
+Occ_Q3<-select(Occ_Compare,大職業別,`大學-薪資.y`,`研究所-薪資`)
+Occ_Q3$學歷薪資比較 <-
+as.numeric(Occ_Q3$`研究所-薪資`) / as.numeric(Occ_Q3$`大學-薪資.y`)
+Occ_Q3 <- arrange(Occ_Q3,desc(學歷薪資比較))
+head(Occ_Q3[order(Occ_Q3$學歷薪資比較,decreasing = T),],10)
 ```
+首先能看出薪資差異最多的是其他服務業。
+
+可以看的出來前十名都是對專業度要求較高的職業，意味著企業普遍認為研究所的專業度高於大學畢業，於是連帶影響兩者的薪資高低。
+
 
 ## 我有興趣的職業別薪資狀況分析
 
 ### 有興趣的職業別篩選，呈現薪資
 ```{r like}
-#這是R Code Chunk
+Occ_Q4<-select(Occ_Compare,大職業別,`大學-薪資.y`,`研究所-薪資`)
+Occ_Q4$薪資差別<-as.numeric(Occ_Q4$`研究所-薪資`) - as.numeric(Occ_Q4$`大學-薪資.y`)
+Occ_Q4_S1<-subset(Occ_Q4,大職業別=="資訊及通訊傳播業")
+Occ_Q4_S2<-subset(Occ_Q4,大職業別=="醫療保健服務業")
+Occ_Q4_S3<-subset(Occ_Q4,大職業別=="金融及保險業")
+Occ_Q4_S4<-subset(Occ_Q4,大職業別=="住宿及餐飲業")
+Occ_Q4_S5<-subset(Occ_Q4,大職業別=="教育服務業")
 ```
 
 ### 這些職業別研究所薪資與大學薪資差多少呢？
 ```{r likeGrad}
-#這是R Code Chunk
+head(Occ_Q4_S1)
+head(Occ_Q4_S2)
+head(Occ_Q4_S3)
+head(Occ_Q4_S4)
+head(Occ_Q4_S5)
 ```
+資訊及通訊傳播業，薪資較想像中低，研究所薪資與大學薪資相差5360元，我會因此決定念研究所。
+
+醫療保健服務業，薪資較想像中低，研究所薪資與大學薪資相差4846元，我會因此決定念研究所。
+
+金融及保險業，薪資較想像中高，研究所薪資與大學薪資相差4780元，我會因此決定念研究所。
+
+住宿及餐飲業，薪資較想像中低，研究所薪資與大學薪資相差2866元，我會因此決定不念研究所。
+
+教育服務業，薪資較想像中低，研究所薪資與大學薪資相差2927元，我會因此決定不念研究所。
+
 
